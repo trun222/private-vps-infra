@@ -1,0 +1,21 @@
+groups:
+  - name: core-alerts
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus target is down"
+          description: "Target {{ $labels.job }} ({{ $labels.instance }}) has been down for >2m."
+
+      - alert: HostDiskAlmostFull
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk almost full"
+          description: "Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }} has <10% free space."

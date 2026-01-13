@@ -1,0 +1,88 @@
+// --------------------------------------------
+// CONFIG: Change these two values if you want
+// --------------------------------------------
+constants "env" {
+  host = "hetzner-vps"   // You can set this to your TS_HOSTNAME or actual hostname
+  env  = "infra"         // Optional: dev/staging/prod; "infra" is fine for core VPS
+}
+
+// --------------------------------------------
+// Discover docker containers
+// --------------------------------------------
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// --------------------------------------------
+// Collect docker container logs
+// --------------------------------------------
+loki.source.docker "docker_logs" {
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.docker.containers.targets
+
+  // Forward into a processing pipeline before writing to Loki
+  forward_to = [loki.process.enrich.receiver]
+}
+
+// --------------------------------------------
+// Enrich + normalize labels (keep cardinality low)
+// --------------------------------------------
+loki.process "enrich" {
+  // Add a few stable labels used across everything
+  stage.static_labels {
+    values = {
+      host = constants.env.host,
+      env  = constants.env.env,
+    }
+  }
+
+  // Extract and normalize common Docker metadata
+  //
+  // Note: The exact meta keys available can vary by version; the discovery targets
+  // typically include labels and container identifiers.
+  //
+  // We'll promote ONLY low-cardinality, high-value fields:
+  // - container (container name)
+  // - compose_project / compose_service (from docker compose labels)
+  // - app/env/service (from your custom com.builtwithwisdom.* labels)
+  //
+  stage.labels {
+    values = {
+      // container name (nice for ad-hoc debugging)
+      container = "__meta_docker_container_name",
+
+      // Docker Compose labels (very useful; low cardinality)
+      compose_project = "__meta_docker_container_label_com_docker_compose_project",
+      compose_service = "__meta_docker_container_label_com_docker_compose_service",
+
+      // Optional: your org labeling standard (recommended)
+      app     = "__meta_docker_container_label_com_builtwithwisdom_app",
+      app_env = "__meta_docker_container_label_com_builtwithwisdom_env",
+      service = "__meta_docker_container_label_com_builtwithwisdom_service",
+    }
+  }
+
+  // Clean up container name (Docker often includes a leading "/")
+  stage.replace {
+    expression = "^/(.*)$"
+    replace    = "$1"
+    source     = "container"
+  }
+
+  // Drop labels if they're empty (keeps streams clean)
+  stage.label_drop {
+    values = ["compose_project", "compose_service", "app", "app_env", "service"]
+  }
+
+  // Forward to writer
+  forward_to = [loki.write.to_loki.receiver]
+}
+
+// --------------------------------------------
+// Write to Loki
+// --------------------------------------------
+loki.write "to_loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

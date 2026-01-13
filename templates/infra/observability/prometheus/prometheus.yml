@@ -1,0 +1,82 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  ############################################
+  # Prometheus self
+  ############################################
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus:9090"]
+
+  ############################################
+  # Host metrics (CPU/mem/disk/network)
+  ############################################
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  ############################################
+  # Container metrics (per-container CPU/mem/restarts)
+  ############################################
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  ############################################
+  # Apps (opt-in via Docker labels)
+  #
+  # Any container that exposes /metrics can be scraped automatically
+  # if you add labels like:
+  #
+  #   labels:
+  #     prometheus.scrape: "true"
+  #     prometheus.port: "3001"
+  #     prometheus.path: "/metrics"     # optional (default /metrics)
+  #     app: "polyport"
+  #     env: "dev"
+  #     service: "api"
+  #
+  ############################################
+  - job_name: apps
+    metrics_path: /metrics
+    docker_sd_configs:
+      - host: tcp://docker-socket-proxy:2375
+        refresh_interval: 30s
+    relabel_configs:
+      # Keep only containers with prometheus.scrape="true"
+      - source_labels: [__meta_docker_container_label_prometheus_scrape]
+        regex: "true"
+        action: keep
+
+      # Build target address from container network IP and prometheus.port label
+      - source_labels: [__meta_docker_container_network_ip, __meta_docker_container_label_prometheus_port]
+        separator: ":"
+        target_label: __address__
+        replacement: "$1:$2"
+
+      # Allow overriding metrics path with prometheus.path label
+      - source_labels: [__meta_docker_container_label_prometheus_path]
+        regex: "(.+)"
+        target_label: __metrics_path__
+        replacement: "$1"
+        action: replace
+
+      # Map common identity labels if present
+      - source_labels: [__meta_docker_container_label_app]
+        target_label: app
+      - source_labels: [__meta_docker_container_label_env]
+        target_label: env
+      - source_labels: [__meta_docker_container_label_service]
+        target_label: service
+
+      # Nice-to-have: container name
+      - source_labels: [__meta_docker_container_name]
+        regex: "/(.*)"
+        target_label: container
+        replacement: "$1"
