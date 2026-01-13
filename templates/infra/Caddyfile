@@ -27,9 +27,10 @@ tictac232434.duckdns.org {
 # PRIVATE / INTERNAL ROUTES (Tailscale only)
 ############################################
 
-# Shared matcher for Tailscale + localhost
+# Shared matcher for Tailscale + localhost + Docker networks
+# Docker NAT changes source IPs, so we allow Docker bridge ranges too
 (ts_allowlist) {
-  @allowed remote_ip 100.64.0.0/10 127.0.0.1/32 ::1
+  @allowed remote_ip 100.64.0.0/10 127.0.0.1/32 ::1 172.16.0.0/12 192.168.0.0/16
 }
 
 ############################################
