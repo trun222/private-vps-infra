@@ -96,3 +96,19 @@ loki.dev.internal {
 
   respond "Forbidden" 403
 }
+
+############################################
+# n8n - Workflow Automation (private)
+############################################
+
+n8n.dev.internal {
+  tls internal
+  encode zstd gzip
+
+  import ts_allowlist
+  handle @allowed {
+    reverse_proxy n8n:5678
+  }
+
+  respond "Forbidden" 403
+}

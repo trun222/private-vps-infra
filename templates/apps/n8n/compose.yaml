@@ -1,0 +1,82 @@
+############################################
+# n8n - Workflow Automation
+# ~/srv/apps/n8n/compose.yaml
+############################################
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      # Database connection
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: n8n-postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-n8n}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # n8n configuration
+      N8N_HOST: ${N8N_HOST:-n8n.dev.internal}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: ${WEBHOOK_URL:-https://n8n.dev.internal/}
+
+      # Security - CRITICAL: Keep this key safe for credential recovery
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+
+      # Basic auth for extra security (optional but recommended)
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-false}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-}
+
+      # Timezone
+      GENERIC_TIMEZONE: ${TIMEZONE:-America/New_York}
+      TZ: ${TIMEZONE:-America/New_York}
+
+      # Execution settings
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 168  # 7 days in hours
+
+    volumes:
+      - /srv/data/n8n/n8n:/home/node/.n8n
+    depends_on:
+      n8n-postgres:
+        condition: service_healthy
+    labels:
+      com.builtwithwisdom.app: "n8n"
+      com.builtwithwisdom.env: "prod"
+      com.builtwithwisdom.service: "worker"
+
+  n8n-postgres:
+    image: postgres:16-alpine
+    container_name: n8n-postgres
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-n8n}
+      POSTGRES_USER: ${POSTGRES_USER:-n8n}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /srv/data/n8n/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n} -d ${POSTGRES_DB:-n8n}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      com.builtwithwisdom.app: "n8n"
+      com.builtwithwisdom.env: "prod"
+      com.builtwithwisdom.service: "database"
+
+############################################
+# Networks
+############################################
+networks:
+  internal:
+    external: true
+    name: internal

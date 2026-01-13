@@ -114,6 +114,72 @@ set_permissions() {
 }
 
 #############################################
+# Setup individual app
+#############################################
+setup_app() {
+    local app_name="$1"
+    local app_template_dir="${SCRIPT_DIR}/templates/apps/${app_name}"
+    local app_dir="${SRV_DIR}/apps/${app_name}"
+    local app_data_dir="${SRV_DIR}/data/${app_name}"
+    local app_backup_dir="${SRV_DIR}/backups/${app_name}"
+
+    log_info "Setting up app: ${app_name}..."
+
+    # Create app directories
+    mkdir -p "${app_dir}"
+    mkdir -p "${app_data_dir}"
+    mkdir -p "${app_backup_dir}"
+
+    # Copy compose.yaml
+    if [[ -f "${app_template_dir}/compose.yaml" ]]; then
+        cp "${app_template_dir}/compose.yaml" "${app_dir}/compose.yaml"
+    fi
+
+    # Copy .env from template (only if .env doesn't exist)
+    if [[ -f "${app_template_dir}/.env.template" ]]; then
+        if [[ ! -f "${app_dir}/.env" ]]; then
+            cp "${app_template_dir}/.env.template" "${app_dir}/.env"
+            chmod 600 "${app_dir}/.env"
+            log_warn "${app_name}/.env created from template - edit it with actual values!"
+        else
+            log_info "${app_name}/.env already exists, skipping."
+        fi
+    fi
+
+    log_info "App ${app_name} setup complete."
+}
+
+#############################################
+# Setup all apps from templates
+#############################################
+setup_apps() {
+    local apps_template_dir="${SCRIPT_DIR}/templates/apps"
+
+    if [[ ! -d "${apps_template_dir}" ]]; then
+        log_info "No apps templates found, skipping."
+        return
+    fi
+
+    # Iterate through each app in templates/apps/
+    for app_dir in "${apps_template_dir}"/*/; do
+        if [[ -d "${app_dir}" ]]; then
+            local app_name=$(basename "${app_dir}")
+            setup_app "${app_name}"
+
+            # App-specific data directories
+            case "${app_name}" in
+                n8n)
+                    mkdir -p "${SRV_DIR}/data/n8n/postgres"
+                    mkdir -p "${SRV_DIR}/data/n8n/n8n"
+                    # n8n runs as node user (UID 1000)
+                    chown -R 1000:1000 "${SRV_DIR}/data/n8n/n8n"
+                    ;;
+            esac
+        fi
+    done
+}
+
+#############################################
 # Print next steps
 #############################################
 print_next_steps() {
@@ -134,6 +200,17 @@ print_next_steps() {
     echo "     cd ${SRV_DIR}/infra && docker compose up -d"
     echo ""
     echo "  4. Access Grafana at https://grafana.dev.internal (via Tailscale)"
+    echo ""
+    echo "  5. For each app in ${SRV_DIR}/apps/:"
+    echo "     - Edit the .env file with actual values"
+    echo "     - Run: cd ${SRV_DIR}/apps/<app> && docker compose up -d"
+    echo ""
+    echo "  Apps installed:"
+    for app in "${SRV_DIR}"/apps/*/; do
+        if [[ -d "${app}" ]]; then
+            echo "     - $(basename "${app}")"
+        fi
+    done
     echo ""
 }
 
@@ -160,6 +237,7 @@ main() {
     create_directories
     copy_configs
     set_permissions
+    setup_apps
     print_next_steps
 }
 
