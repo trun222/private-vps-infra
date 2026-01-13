@@ -146,6 +146,17 @@ setup_app() {
         fi
     fi
 
+    # Copy additional directories (initdb, scripts, etc.)
+    for subdir in initdb scripts; do
+        if [[ -d "${app_template_dir}/${subdir}" ]]; then
+            cp -r "${app_template_dir}/${subdir}" "${app_dir}/"
+            # Make scripts executable
+            if [[ "${subdir}" == "scripts" ]]; then
+                chmod +x "${app_dir}/scripts/"*.sh 2>/dev/null || true
+            fi
+        fi
+    done
+
     log_info "App ${app_name} setup complete."
 }
 
@@ -166,13 +177,17 @@ setup_apps() {
             local app_name=$(basename "${app_dir}")
             setup_app "${app_name}"
 
-            # App-specific data directories
+            # App-specific data directories and permissions
             case "${app_name}" in
                 n8n)
                     mkdir -p "${SRV_DIR}/data/n8n/postgres"
                     mkdir -p "${SRV_DIR}/data/n8n/n8n"
                     # n8n runs as node user (UID 1000)
                     chown -R 1000:1000 "${SRV_DIR}/data/n8n/n8n"
+                    ;;
+                postgres)
+                    mkdir -p "${SRV_DIR}/data/postgres/data"
+                    mkdir -p "${SRV_DIR}/data/postgres/backups"
                     ;;
             esac
         fi
