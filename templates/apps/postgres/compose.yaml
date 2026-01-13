@@ -23,6 +23,7 @@ services:
       - ./initdb:/docker-entrypoint-initdb.d:ro
     networks:
       - internal
+      - edge  # Required for port publishing (internal network blocks it)
     # Expose on localhost only for SSH tunnel access (BeeKeeper, etc.)
     # NOT exposed to public internet
     ports:
@@ -44,3 +45,6 @@ networks:
   internal:
     external: true
     name: internal
+  edge:
+    external: true
+    name: edge
