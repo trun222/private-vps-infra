@@ -10,6 +10,7 @@ services:
     restart: unless-stopped
     networks:
       - internal
+      - edge  # For external API access (webhooks, registration, etc.)
     environment:
       # Database connection
       DB_TYPE: postgresdb
@@ -80,3 +81,6 @@ networks:
   internal:
     external: true
     name: internal
+  edge:
+    external: true
+    name: edge
