@@ -87,7 +87,7 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://grafana.dev.internal}
     volumes:
-      - /srv/data/observability/grafana:/var/lib/grafana
+      - ../data/observability/grafana:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
 
   ############################################
@@ -102,7 +102,7 @@ services:
     command: ["-config.file=/etc/loki/config.yaml"]
     volumes:
       - ./observability/loki/config.yaml:/etc/loki/config.yaml:ro
-      - /srv/data/observability/loki:/loki
+      - ../data/observability/loki:/loki
 
   ############################################
   # Prometheus (metrics collection)
@@ -120,7 +120,7 @@ services:
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/prometheus/rules:/etc/prometheus/rules:ro
-      - /srv/data/observability/prometheus:/prometheus
+      - ../data/observability/prometheus:/prometheus
 
   ############################################
   # Node Exporter (host metrics)

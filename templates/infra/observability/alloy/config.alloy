@@ -1,10 +1,6 @@
 // --------------------------------------------
-// CONFIG: Change these two values if you want
+// Grafana Alloy - Docker Log Collection
 // --------------------------------------------
-constants "env" {
-  host = "hetzner-vps"   // You can set this to your TS_HOSTNAME or actual hostname
-  env  = "infra"         // Optional: dev/staging/prod; "infra" is fine for core VPS
-}
 
 // --------------------------------------------
 // Discover docker containers
@@ -28,20 +24,18 @@ loki.source.docker "docker_logs" {
 // Enrich + normalize labels (keep cardinality low)
 // --------------------------------------------
 loki.process "enrich" {
-  // Add a few stable labels used across everything
+  // Add stable host/env labels
+  // Change these values to match your environment
   stage.static_labels {
     values = {
-      host = constants.env.host,
-      env  = constants.env.env,
+      host = "hetzner-vps",
+      env  = "infra",
     }
   }
 
   // Extract and normalize common Docker metadata
   //
-  // Note: The exact meta keys available can vary by version; the discovery targets
-  // typically include labels and container identifiers.
-  //
-  // We'll promote ONLY low-cardinality, high-value fields:
+  // We promote ONLY low-cardinality, high-value fields:
   // - container (container name)
   // - compose_project / compose_service (from docker compose labels)
   // - app/env/service (from your custom com.builtwithwisdom.* labels)
@@ -67,11 +61,6 @@ loki.process "enrich" {
     expression = "^/(.*)$"
     replace    = "$1"
     source     = "container"
-  }
-
-  // Drop labels if they're empty (keeps streams clean)
-  stage.label_drop {
-    values = ["compose_project", "compose_service", "app", "app_env", "service"]
   }
 
   // Forward to writer

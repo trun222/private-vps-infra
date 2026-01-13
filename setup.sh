@@ -95,8 +95,15 @@ copy_configs() {
 set_permissions() {
     log_info "Setting permissions..."
 
-    # Ensure data directories are writable by containers
-    # (adjust UID/GID if your containers run as specific users)
+    # Container UID mappings:
+    # - Grafana runs as UID 472
+    # - Prometheus runs as UID 65534 (nobody)
+    # - Loki runs as UID 10001
+    chown -R 472:472 "${SRV_DIR}/data/observability/grafana"
+    chown -R 65534:65534 "${SRV_DIR}/data/observability/prometheus"
+    chown -R 10001:10001 "${SRV_DIR}/data/observability/loki"
+
+    # Ensure directories are writable
     chmod -R 755 "${SRV_DIR}/data"
     chmod -R 755 "${SRV_DIR}/backups"
 
