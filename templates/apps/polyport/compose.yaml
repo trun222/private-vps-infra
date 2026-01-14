@@ -1,0 +1,76 @@
+############################################
+# Polyport - Deployment Orchestration Platform
+# ~/srv/apps/polyport/compose.yaml
+############################################
+
+services:
+  ############################################
+  # Polyport API
+  ############################################
+  polyport-api:
+    image: tictac232434/polyport-api:latest
+    container_name: polyport-api
+    restart: unless-stopped
+    networks:
+      - internal
+      - edge
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY}
+      API_BASE_URL: ${API_BASE_URL}
+    labels:
+      # Prometheus metrics scraping
+      prometheus.scrape: "true"
+      prometheus.port: "3001"
+      prometheus.path: "/metrics"
+      app: "polyport"
+      env: "dev"
+      service: "api"
+      # Log enrichment
+      com.builtwithwisdom.app: "polyport"
+      com.builtwithwisdom.env: "dev"
+      com.builtwithwisdom.service: "api"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ############################################
+  # Polyport Web (Remix)
+  ############################################
+  polyport-web:
+    image: tictac232434/polyport-web:latest
+    container_name: polyport-web
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_URL: http://polyport-api:3001
+    depends_on:
+      polyport-api:
+        condition: service_healthy
+    labels:
+      app: "polyport"
+      env: "dev"
+      service: "web"
+      # Log enrichment
+      com.builtwithwisdom.app: "polyport"
+      com.builtwithwisdom.env: "dev"
+      com.builtwithwisdom.service: "web"
+
+############################################
+# Networks (external, created by infra)
+############################################
+networks:
+  internal:
+    external: true
+    name: internal
+  edge:
+    external: true
+    name: edge
