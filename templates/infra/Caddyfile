@@ -15,23 +15,20 @@
 tictac232434.duckdns.org {
   encode zstd gzip
 
-  # Default placeholder (safe to keep)
+  # Polyport API (for agent registration from AWS/remote hosts)
+  handle /polyport/api/* {
+    uri strip_prefix /polyport/api
+    reverse_proxy polyport-api:3001
+  }
+
+  # Polyport Web UI
+  handle /polyport/* {
+    uri strip_prefix /polyport
+    reverse_proxy polyport-web:3000
+  }
+
+  # Default placeholder
   respond "Caddy core infra is running" 200
-
-  # Example future public apps:
-  # reverse_proxy /app1/* app1-web:3000
-  # reverse_proxy app2-web:3000
-}
-
-############################################
-# Polyport API (PUBLIC - for agent registration)
-# AWS/remote agents need to reach this endpoint
-############################################
-
-api.polyport.tictac232434.duckdns.org {
-  encode zstd gzip
-
-  reverse_proxy polyport-api:3001
 }
 
 ############################################
