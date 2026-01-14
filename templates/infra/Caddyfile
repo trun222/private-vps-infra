@@ -24,6 +24,17 @@ tictac232434.duckdns.org {
 }
 
 ############################################
+# Polyport API (PUBLIC - for agent registration)
+# AWS/remote agents need to reach this endpoint
+############################################
+
+api.polyport.tictac232434.duckdns.org {
+  encode zstd gzip
+
+  reverse_proxy polyport-api:3001
+}
+
+############################################
 # PRIVATE / INTERNAL ROUTES (Tailscale only)
 ############################################
 
@@ -50,7 +61,7 @@ grafana.dev.internal {
 }
 
 ############################################
-# PolyPort Dev (private)
+# Polyport Web UI (private - Tailscale only)
 ############################################
 
 polyport.dev.internal {
@@ -59,7 +70,7 @@ polyport.dev.internal {
 
   import ts_allowlist
   handle @allowed {
-    reverse_proxy polyport-dev-web:3000
+    reverse_proxy polyport-web:3000
   }
 
   respond "Forbidden" 403
