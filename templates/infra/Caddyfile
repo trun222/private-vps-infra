@@ -1,116 +1,66 @@
 {
-  # Email used for ACME (Let's Encrypt) for PUBLIC domains only
-  email you@example.com
-
-  # Sensible global defaults
+  email thomas@scalor.app
   servers {
     protocols h1 h2 h3
   }
 }
 
 ############################################
-# PUBLIC ENTRYPOINT (Internet-facing)
+# PUBLIC - Polyport (scalor.app)
 ############################################
 
-tictac232434.duckdns.org {
+scalor.app {
   encode zstd gzip
-
-  # Polyport API (for agent registration from AWS/remote hosts)
-  handle /api/* {
-    uri strip_prefix /api
-    reverse_proxy polyport-api:3001
-  }
-
-  # Polyport Web UI (everything else)
   reverse_proxy polyport-web:3000
+}
+
+api.scalor.app {
+  encode zstd gzip
+  reverse_proxy polyport-api:3001
 }
 
 ############################################
 # PRIVATE / INTERNAL ROUTES (Tailscale only)
 ############################################
 
-# Shared matcher for Tailscale + localhost + Docker networks
-# Docker NAT changes source IPs, so we allow Docker bridge ranges too
 (ts_allowlist) {
   @allowed remote_ip 100.64.0.0/10 127.0.0.1/32 ::1 172.16.0.0/12 192.168.0.0/16
 }
 
-############################################
-# Grafana (private)
-############################################
-
 grafana.dev.internal {
   tls internal
   encode zstd gzip
-
   import ts_allowlist
   handle @allowed {
     reverse_proxy grafana:3000
   }
-
   respond "Forbidden" 403
 }
-
-############################################
-# Polyport Web UI (private - Tailscale only)
-############################################
-
-polyport.dev.internal {
-  tls internal
-  encode zstd gzip
-
-  import ts_allowlist
-  handle @allowed {
-    reverse_proxy polyport-web:3000
-  }
-
-  respond "Forbidden" 403
-}
-
-############################################
-# Optional: Prometheus UI (private)
-############################################
-# Usually you don't expose this, but useful sometimes
 
 prometheus.dev.internal {
   tls internal
-
   import ts_allowlist
   handle @allowed {
     reverse_proxy prometheus:9090
   }
-
   respond "Forbidden" 403
 }
 
-############################################
-# Optional: Loki API / Debug (private)
-############################################
-# Loki is normally accessed only via Grafana
-
 loki.dev.internal {
   tls internal
-
   import ts_allowlist
   handle @allowed {
     reverse_proxy loki:3100
   }
-
   respond "Forbidden" 403
 }
-
-############################################
-# n8n - Workflow Automation (private)
-############################################
 
 n8n.dev.internal {
   tls internal
   encode zstd gzip
-
   import ts_allowlist
   handle @allowed {
     reverse_proxy n8n:5678
   }
-
   respond "Forbidden" 403
 }
