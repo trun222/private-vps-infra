@@ -34,6 +34,24 @@ api.architectworks.scalor.app {
 }
 
 ############################################
+# PUBLIC - Infisical Secrets Manager
+# https://secrets.scalor.app
+############################################
+
+secrets.scalor.app {
+  encode zstd gzip
+
+  # Infisical uses WebSockets for real-time updates
+  # These headers ensure proper WebSocket proxying
+  reverse_proxy infisical:8080 {
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    header_up Connection {>Connection}
+    header_up Upgrade {>Upgrade}
+  }
+}
+
+############################################
 # PRIVATE / INTERNAL ROUTES (Tailscale only)
 ############################################
 

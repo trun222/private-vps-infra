@@ -29,6 +29,16 @@ GRANT ALL PRIVILEGES ON DATABASE architectworks TO architectworks;
 GRANT ALL ON SCHEMA public TO architectworks;
 
 -- ============================================
+-- Infisical (Secrets Manager)
+-- ============================================
+CREATE USER infisical WITH PASSWORD 'INFISICAL_PASS_PLACEHOLDER';
+CREATE DATABASE infisical OWNER infisical;
+GRANT ALL PRIVILEGES ON DATABASE infisical TO infisical;
+
+\c infisical
+GRANT ALL ON SCHEMA public TO infisical;
+
+-- ============================================
 -- Add more apps below as needed
 -- ============================================
 

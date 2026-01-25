@@ -189,6 +189,11 @@ setup_apps() {
                     mkdir -p "${SRV_DIR}/data/postgres/data"
                     mkdir -p "${SRV_DIR}/data/postgres/backups"
                     ;;
+                infisical)
+                    mkdir -p "${SRV_DIR}/data/infisical/redis"
+                    # Redis runs as UID 999 in alpine image
+                    chown -R 999:999 "${SRV_DIR}/data/infisical/redis"
+                    ;;
             esac
         fi
     done

@@ -1,0 +1,108 @@
+############################################
+# Infisical - Open Source Secrets Manager
+# ~/srv/apps/infisical/compose.yaml
+#
+# Self-hosted secrets management for storing
+# and syncing environment variables across
+# your infrastructure.
+############################################
+
+services:
+  infisical:
+    image: infisical/infisical:latest-postgres
+    container_name: infisical
+    restart: unless-stopped
+    networks:
+      - internal
+      - edge  # For Caddy reverse proxy
+    environment:
+      # =============================================
+      # CRITICAL SECURITY KEYS
+      # Generate these ONCE and store securely!
+      # =============================================
+
+      # 32-byte hex encryption key for secrets at rest
+      # Generate with: openssl rand -hex 16
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # JWT signing secret (random string, 32+ chars)
+      # Generate with: openssl rand -base64 32
+      AUTH_SECRET: ${AUTH_SECRET}
+
+      # =============================================
+      # DATABASE CONNECTION
+      # Uses shared Postgres cluster
+      # =============================================
+      DB_CONNECTION_URI: ${DB_CONNECTION_URI}
+
+      # =============================================
+      # REDIS CONNECTION
+      # Used for caching and session management
+      # =============================================
+      REDIS_URL: ${REDIS_URL:-redis://infisical-redis:6379}
+
+      # =============================================
+      # SITE CONFIGURATION
+      # =============================================
+
+      # Public URL where Infisical will be accessible
+      SITE_URL: ${SITE_URL:-https://secrets.scalor.app}
+
+      # Production mode
+      NODE_ENV: production
+
+      # Telemetry (optional - disable if desired)
+      TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
+
+      # =============================================
+      # SMTP CONFIGURATION (Optional)
+      # Required for email invitations and alerts
+      # =============================================
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Infisical}
+
+    depends_on:
+      infisical-redis:
+        condition: service_healthy
+    labels:
+      com.builtwithwisdom.app: "infisical"
+      com.builtwithwisdom.env: "prod"
+      com.builtwithwisdom.service: "app"
+
+  # =============================================
+  # Redis for Infisical
+  # Used for caching, rate limiting, sessions
+  # =============================================
+  infisical-redis:
+    image: redis:7-alpine
+    container_name: infisical-redis
+    restart: unless-stopped
+    networks:
+      - internal
+    command: redis-server --appendonly yes
+    volumes:
+      - /srv/data/infisical/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      com.builtwithwisdom.app: "infisical"
+      com.builtwithwisdom.env: "prod"
+      com.builtwithwisdom.service: "cache"
+
+############################################
+# Networks
+############################################
+networks:
+  internal:
+    external: true
+    name: internal
+  edge:
+    external: true
+    name: edge
