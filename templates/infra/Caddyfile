@@ -20,6 +20,20 @@ api.scalor.app {
 }
 
 ############################################
+# PUBLIC - ArchitectWorks (architectworks.scalor.app)
+############################################
+
+architectworks.scalor.app {
+  encode zstd gzip
+  reverse_proxy architectworks-web:3000
+}
+
+api.architectworks.scalor.app {
+  encode zstd gzip
+  reverse_proxy architectworks-api:3001
+}
+
+############################################
 # PRIVATE / INTERNAL ROUTES (Tailscale only)
 ############################################
 

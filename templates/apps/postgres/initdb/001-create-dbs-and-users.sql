@@ -19,6 +19,16 @@ GRANT ALL PRIVILEGES ON DATABASE polyport_dev TO polyport;
 GRANT ALL ON SCHEMA public TO polyport;
 
 -- ============================================
+-- ArchitectWorks
+-- ============================================
+CREATE USER architectworks WITH PASSWORD 'ARCHITECTWORKS_PASS_PLACEHOLDER';
+CREATE DATABASE architectworks OWNER architectworks;
+GRANT ALL PRIVILEGES ON DATABASE architectworks TO architectworks;
+
+\c architectworks
+GRANT ALL ON SCHEMA public TO architectworks;
+
+-- ============================================
 -- Add more apps below as needed
 -- ============================================
 

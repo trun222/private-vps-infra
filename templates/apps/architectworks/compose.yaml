@@ -1,0 +1,83 @@
+############################################
+# ArchitectWorks - Production Deployment
+# ~/srv/apps/architectworks/compose.yaml
+############################################
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: architectworks-redis
+    restart: unless-stopped
+    volumes:
+      - /srv/data/architectworks/redis:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      com.builtwithwisdom.app: "architectworks"
+      com.builtwithwisdom.env: "prod"
+      com.builtwithwisdom.service: "redis"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    image: architectworks-api:latest
+    container_name: architectworks-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://architectworks-redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      SKIP_AUTH: "false"
+    networks:
+      - internal
+      - edge
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      com.builtwithwisdom.app: "architectworks"
+      com.builtwithwisdom.env: "prod"
+      com.builtwithwisdom.service: "api"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    image: architectworks-web:latest
+    container_name: architectworks-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    networks:
+      - edge
+    depends_on:
+      api:
+        condition: service_healthy
+    labels:
+      com.builtwithwisdom.app: "architectworks"
+      com.builtwithwisdom.env: "prod"
+      com.builtwithwisdom.service: "web"
+
+networks:
+  internal:
+    external: true
+    name: internal
+  edge:
+    external: true
+    name: edge
