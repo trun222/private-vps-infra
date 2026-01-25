@@ -63,8 +63,16 @@ services:
     container_name: architectworks-web
     restart: unless-stopped
     environment:
+      # Public env vars (available client-side)
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      # Server-side env vars for Next.js API routes (chat)
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_APP_URL: ${OPENROUTER_APP_URL}
+      OPENROUTER_APP_TITLE: ${OPENROUTER_APP_TITLE}
+      # Internal API URL for server-side calls
+      API_BASE_URL: http://architectworks-api:3001/api/v1
     networks:
+      - internal
       - edge
     depends_on:
       api:
