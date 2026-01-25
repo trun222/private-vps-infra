@@ -1,0 +1,37 @@
+# API Dockerfile
+FROM node:20-alpine AS base
+
+# Install pnpm v10 to match local version and openssl for Prisma
+RUN apk add --no-cache openssl && npm install -g pnpm@10
+
+WORKDIR /app
+
+# Install dependencies and build
+FROM base AS builder
+
+# Copy entire workspace for proper pnpm linking
+COPY pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/intent-core ./packages/intent-core
+COPY apps/api ./apps/api
+
+# Install all workspace dependencies
+RUN pnpm install --frozen-lockfile
+
+# Build intent-core first, then API
+RUN cd packages/intent-core && pnpm build
+RUN cd apps/api && pnpm build
+
+# Production - simpler approach: keep the full workspace structure
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy everything from builder
+COPY --from=builder /app ./
+
+WORKDIR /app/apps/api
+
+EXPOSE 3001
+
+CMD ["node", "dist/main.js"]
