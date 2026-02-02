@@ -1,37 +1,73 @@
 # API Dockerfile
 FROM node:20-alpine AS base
 
-# Install pnpm v10 to match local version and openssl for Prisma
-RUN apk add --no-cache openssl && npm install -g pnpm@10
+# Install system dependencies:
+# - openssl: Required by Prisma
+# - imagemagick: Required for PDF to image conversion (pdf2pic)
+# - ghostscript: Required by ImageMagick to process PDFs
+# - curl, bash: Required for Infisical CLI installation
+RUN apk add --no-cache openssl imagemagick ghostscript curl bash && npm install -g pnpm@10
+
+# Install Infisical CLI for secret injection
+RUN curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.alpine.sh' | bash \
+    && apk add --no-cache infisical
 
 WORKDIR /app
 
 # Install dependencies and build
 FROM base AS builder
 
-# Copy entire workspace for proper pnpm linking
-COPY pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
+# Copy workspace config files
+COPY pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json package.json ./
+
+# Copy shared packages
 COPY packages/intent-core ./packages/intent-core
+
+# Copy the API app
 COPY apps/api ./apps/api
 
 # Install all workspace dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build intent-core first, then API
-RUN cd packages/intent-core && pnpm build
-RUN cd apps/api && pnpm build
+# Build intent-core first (API depends on it)
+RUN pnpm --filter @architectworks/intent-core build
 
-# Production - simpler approach: keep the full workspace structure
+# Build the API
+RUN pnpm --filter @architectworks/api build
+
+# Production
 FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy everything from builder
-COPY --from=builder /app ./
+# Copy workspace config for runtime resolution
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/package.json ./
+
+# Copy built intent-core package
+COPY --from=builder /app/packages/intent-core/dist ./packages/intent-core/dist
+COPY --from=builder /app/packages/intent-core/package.json ./packages/intent-core/
+
+# Copy built API app
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+
+# Install production dependencies only
+RUN pnpm install --prod --frozen-lockfile
+
+# Copy generated Prisma client from builder (prisma is a devDependency, so we copy the generated client)
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client ./node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma ./node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma
+
+# Copy entrypoint script
+COPY docker/entrypoint.api.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 WORKDIR /app/apps/api
 
 EXPOSE 3001
 
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["/app/entrypoint.sh"]

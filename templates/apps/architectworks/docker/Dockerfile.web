@@ -9,23 +9,27 @@ WORKDIR /app
 # Install dependencies and build
 FROM base AS builder
 
-# Set build-time environment variables
-ARG NEXT_PUBLIC_API_URL=https://api.architectworks.scalor.app/api/v1
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# Copy workspace config files
+COPY pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json package.json ./
 
-# Copy entire workspace for proper pnpm linking
-COPY pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
+# Copy shared packages
 COPY packages/intent-core ./packages/intent-core
+
+# Copy the Studio app
 COPY apps/studio ./apps/studio
 
 # Install all workspace dependencies
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
-# Build intent-core first, then studio
-RUN cd packages/intent-core && pnpm build
+# Build intent-core first (Studio depends on it)
+RUN pnpm --filter @architectworks/intent-core build
 
+# Build-time environment variables for Next.js (NEXT_PUBLIC_* are baked into the bundle)
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN cd apps/studio && pnpm build
+
+RUN pnpm --filter @architectworks/studio build
 
 # Production
 FROM base AS runner
