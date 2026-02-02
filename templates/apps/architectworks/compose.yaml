@@ -38,6 +38,12 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       JWT_SECRET: ${JWT_SECRET}
       SKIP_AUTH: "false"
+      # Infisical for secret injection (AWS credentials, etc.)
+      INFISICAL_MACHINE_IDENTITY_CLIENT_ID: ${INFISICAL_MACHINE_IDENTITY_CLIENT_ID}
+      INFISICAL_MACHINE_IDENTITY_CLIENT_SECRET: ${INFISICAL_MACHINE_IDENTITY_CLIENT_SECRET}
+      INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID}
+      INFISICAL_API_URL: ${INFISICAL_API_URL:-https://secrets.scalor.app}
+      INFISICAL_ENV: ${INFISICAL_ENV:-dev}
     networks:
       - internal
       - edge
